@@ -1,45 +1,361 @@
-<!DOCTYPE html>  
-<html lang="en">  
-<head>  
-    <meta charset="UTF-8">  
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">  
-    <title>String Matching Algorithm Visualizer</title>  
-    <link rel="stylesheet" href="styles.css">  
-</head>  
-<body>  
-    <div class="container">  
-        <h1>String Matching Algorithm Visualizer</h1>  
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>String Matching Algorithm Visualizer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #273b40;
+            color: #1d1d1d;
+        }
+        .container {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            background-color: #cae9ea;
+        }
+        .input-group {
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .visualization {
+            font-family: monospace;
+            font-size: 20px;
+            margin: 20px 0;
+            overflow-x: auto;
+        }
+        .index-row, .text-row, .pattern-row {
+            white-space: pre;
+            line-height: 1.5;
+            margin: 5px 0;
+        }
+        .character {
+            display: inline-block;
+            width: 30px;
+            text-align: center;
+        }
+        .match {
+            background-color: #208cdc;
+        }
+        .current {
+            background-color: #3c4748;
+            color: white;
+        }
+        .controls {
+            margin: 20px 0;
+            display: flex;
+            gap: 10px;
+        }
+        button {
+            padding: 8px 16px;
+            cursor: pointer;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+        }
+        button:disabled {
+            background-color: #ccc;
+        }
+        select {
+            padding: 8px;
+            margin-right: 10px;
+        }
+        .slider {
+            flex-grow: 1;
+            margin: 0 10px;
+        }
+        .state-table {
+            margin-top: 20px;
+            border-collapse: collapse;
+            width: 100%;
+            max-width: 300px;
+        }
+        .state-table th, .state-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+            background-color: white;
+        }
+        .explanation {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #fff;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            font-size: 16px;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>String Matching Algorithm Visualizer</h1>
         
-        <div class="input-group">  
-            <label>Algorithm:</label>  
-            <select id="algorithm">  
-                <option value="horspool" selected>Boyer-Moore-Horspool</option>  
-            </select>  
-            <button onclick="toggleStateTable()" id="toggleTableBtn">Show state table</button>  
-        </div>  
+        <div class="input-group">
+            <label>Algorithm:</label>
+            <select id="algorithm">
+                <option value="horspool" selected>Boyer-Moore-Horspool</option>
+            </select>
+            <button onclick="toggleStateTable()" id="toggleTableBtn">Show state table</button>
+            <button onclick="generateRandom()" id="generateBtn">Generate Random</button>
+        </div>
 
-        <div class="input-group">  
-            <label>Text to search:</label>  
-            <input type="text" id="searchText" value="the mathematical theory" style="width: 100%; padding: 8px;">  
-        </div>  
+        <div class="input-group">
+            <label>Text to search:</label>
+            <input type="text" id="searchText" value="the mathematical theory" style="width: 100%; padding: 8px;">
+        </div>
 
-        <div class="input-group">  
-            <label>Search pattern:</label>  
-            <input type="text" id="pattern" value="theory" style="width: 100%; padding: 8px;">  
-        </div>  
+        <div class="input-group">
+            <label>Search pattern:</label>
+            <input type="text" id="pattern" value="theory" style="width: 100%; padding: 8px;">
+        </div>
 
-        <div id="visualization" class="visualization"></div>  
-        <div class="explanation" id="explanation"></div>  
+        <div id="visualization" class="visualization"></div>
+        <div class="explanation" id="explanation"></div>
 
-        <div class="controls">  
-            <button id="prevBtn" onclick="previousStep()">Previous</button>  
-            <button id="nextBtn" onclick="nextStep()">Next</button>  
-            <input type="range" id="progressSlider" class="slider" min="0" value="0">  
-        </div>  
+        <div class="controls">
+            <button id="prevBtn" onclick="previousStep()">Previous</button>
+            <button id="nextBtn" onclick="nextStep()">Next</button>
+            <input type="range" id="progressSlider" class="slider" min="0" value="0">
+        </div>
 
-        <div id="stateTable" style="display: none;"></div>  
-    </div>  
+        <div id="stateTable" style="display: none;"></div>
+    </div>
 
-    <script src="script.js"></script>  
-</body>  
+    <script>
+        let text = '';
+        let pattern = '';
+        let currentStep = 0;
+        let totalSteps = 0;
+        let steps = [];
+        let badCharTable = {};
+
+        const commonWords = [
+            'the', 'be', 'to', 'of', 'and', 'a', 'in', 'that', 'have', 'I',
+            'it', 'for', 'not', 'on', 'with', 'he', 'as', 'you', 'do', 'at',
+            'this', 'but', 'his', 'by', 'from', 'they', 'we', 'say', 'her', 'she',
+            'or', 'an', 'will', 'my', 'one', 'all', 'would', 'there', 'their', 'what'
+        ];
+
+        function generateRandom() {
+            
+            const textLength = Math.floor(Math.random() * 6) + 5;
+            const textWords = [];
+            for (let i = 0; i < textLength; i++) {
+                const randomIndex = Math.floor(Math.random() * commonWords.length);
+                textWords.push(commonWords[randomIndex]);
+            }
+            document.getElementById('searchText').value = textWords.join(' ');
+
+            const randomWordIndex = Math.floor(Math.random() * textWords.length);
+            document.getElementById('pattern').value = textWords[randomWordIndex];
+
+            initialize();
+        }
+
+        function initialize() {
+            text = document.getElementById('searchText').value;
+            pattern = document.getElementById('pattern').value;
+            currentStep = 0;
+            generateSteps();
+            updateVisualization();
+            updateControls();
+        }
+
+        function generateBadCharTable() {
+            badCharTable = {};
+            for (let i = 0; i < pattern.length - 1; i++) {
+                badCharTable[pattern[i]] = pattern.length - 1 - i;
+            }
+        }
+
+        function generateSteps() {
+            steps = [];
+            generateBadCharTable();
+            generateHorspoolSteps();
+            totalSteps = steps.length;
+            document.getElementById('progressSlider').max = totalSteps - 1;
+        }
+
+        function generateHorspoolSteps() {
+            let i = pattern.length - 1;
+
+            while (i < text.length) {
+                let step = {
+                    position: i,
+                    comparisons: [],
+                    matches: [],
+                    explanation: ''
+                };
+
+                let j;
+                for (j = pattern.length - 1; j >= 0; j--) {
+                    const textIndex = i - (pattern.length - 1 - j);
+                    step.comparisons.push(textIndex);
+                    
+                    if (text[textIndex] === pattern[j]) {
+                        step.matches.push(textIndex);
+                        step.explanation += `Found match: '${pattern[j]}' equals '${text[textIndex]}' at position ${textIndex}. `;
+                        
+                        if (j > 0) {
+                            step.explanation += `Moving left to compare next character. `;
+                        }
+                        
+                        if (j < pattern.length - 1) {
+                            steps.push({...step});
+                        }
+                    } else {
+                        const shift = badCharTable[text[textIndex]] || pattern.length;
+                        step.explanation = `Comparison failed: '${text[textIndex]}' does not match '${pattern[j]}' at position ${textIndex}. `;
+                        step.explanation += `Based on bad character rule, shifting pattern by ${shift} positions. `;
+                        steps.push({...step});
+                        i += shift;
+                        break;
+                    }
+                }
+
+                if (j < 0) {
+                    step.explanation = `Success! Complete pattern '${pattern}' found at position ${i - pattern.length + 1}. `;
+                    step.explanation += `All ${pattern.length} characters matched: `;
+                    for (let k = 0; k < pattern.length; k++) {
+                        const pos = i - pattern.length + 1 + k;
+                        step.explanation += `'${text[pos]}' `;
+                    }
+                    steps.push({...step});
+                    break;
+                }
+            }
+
+            if (steps.length === 0 || !steps[steps.length - 1].explanation.includes('Success')) {
+                steps.push({
+                    position: -1,
+                    comparisons: [],
+                    matches: [],
+                    explanation: `No match found for pattern '${pattern}' in the text after checking all possible positions.`
+                });
+            }
+        }
+
+        function updateVisualization() {
+            const visualization = document.getElementById('visualization');
+            let html = '';
+
+            // Index row
+            html += '<div class="index-row">';
+            for (let i = 0; i < text.length; i++) {
+                html += `<span class="character">${i}</span>`;
+            }
+            html += '</div>';
+
+            // Text row
+            html += '<div class="text-row">';
+            for (let i = 0; i < text.length; i++) {
+                let classes = ['character'];
+                if (currentStep < steps.length) {
+                    if (steps[currentStep].matches.includes(i)) {
+                        classes.push('match');
+                    }
+                    if (steps[currentStep].comparisons.includes(i)) {
+                        classes.push('current');
+                    }
+                }
+                html += `<span class="${classes.join(' ')}">${text[i]}</span>`;
+            }
+            html += '</div>';
+
+            // Pattern row
+            html += '<div class="pattern-row">';
+            if (currentStep < steps.length) {
+                const pos = steps[currentStep].position;
+                const offset = pos - (pattern.length - 1);
+                for (let i = 0; i < text.length; i++) {
+                    if (i >= offset && i < offset + pattern.length) {
+                        html += `<span class="character">${pattern[i - offset]}</span>`;
+                    } else {
+                        html += '<span class="character"> </span>';
+                    }
+                }
+            }
+            html += '</div>';
+
+            visualization.innerHTML = html;
+            document.getElementById('explanation').innerText = steps[currentStep]?.explanation || '';
+            updateStateTable();
+        }
+
+        function updateStateTable() {
+            const stateTable = document.getElementById('stateTable');
+            let html = '<table class="state-table">';
+            html += '<tr><th>Character</th><th>Shift</th></tr>';
+
+            for (const [char, shift] of Object.entries(badCharTable)) {
+                html += `<tr><td>${char}</td><td>${shift}</td></tr>`;
+            }
+            html += `<tr><td>*</td><td>${pattern.length}</td></tr>`;
+
+            html += '</table>';
+            stateTable.innerHTML = html;
+        }
+
+        function updateControls() {
+            document.getElementById('prevBtn').disabled = currentStep <= 0;
+            document.getElementById('nextBtn').disabled = currentStep >= totalSteps - 1;
+            document.getElementById('progressSlider').value = currentStep;
+        }
+
+        function previousStep() {
+            if (currentStep > 0) {
+                currentStep--;
+                updateVisualization();
+                updateControls();
+            }
+        }
+
+        function nextStep() {
+            if (currentStep < totalSteps - 1) {
+                currentStep++;
+                updateVisualization();
+                updateControls();
+            }
+        }
+
+        function toggleStateTable() {
+            const stateTable = document.getElementById('stateTable');
+            const btn = document.getElementById('toggleTableBtn');
+            if (stateTable.style.display === 'none') {
+                stateTable.style.display = 'block';
+                btn.textContent = 'Hide state table';
+            } else {
+                stateTable.style.display = 'none';
+                btn.textContent = 'Show state table';
+            }
+        }
+
+        // Event listeners
+        document.getElementById('searchText').addEventListener('input', initialize);
+        document.getElementById('pattern').addEventListener('input', initialize);
+        document.getElementById('algorithm').addEventListener('change', initialize);
+        document.getElementById('progressSlider').addEventListener('input', function() {
+            currentStep = parseInt(this.value);
+            updateVisualization();
+            updateControls();
+        });
+
+        // Initialize on page load
+        initialize();
+    </script>
+</body>
 </html>
